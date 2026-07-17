@@ -1,0 +1,817 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<!-- CACHE CONTROL: DEFENCE IN DEPTH ONLY -- NOT the fix.
+     data.json is always fetched with {cache:"no-store"}, but THIS document is an
+     ordinary cacheable file, and a browser serving an OLD shell against NEW data
+     renders plausible-looking numbers with dead code. These meta tags ask for
+     revalidation, but they are advisory: a CDN, a proxy, the back/forward cache
+     or a service worker may ignore them, and they can do NOTHING about a copy the
+     browser has ALREADY stored. The authoritative fix is the PAGE_VERSION check
+     in the script below, where the fresh data tells the stale shell it is stale.
+     DO NOT DELETE THAT CHECK BELIEVING THESE TAGS COVER IT -- they do not. -->
+<meta http-equiv="cache-control" content="no-cache, no-store, must-revalidate">
+<meta http-equiv="pragma" content="no-cache">
+<meta http-equiv="expires" content="0">
+<title>Money - Paper Harness (Public Snapshot)</title>
+<style>
+  :root {
+    --bg: #0b0e14; --panel: #141a26; --panel-2: #1a2130; --line: #242c3d;
+    --fg: #e9edf6; --muted: #8b95ab; --faint: #5c6577;
+    --accent: #5b8cff; --accent-2: #7c5cff; --pos: #35d0a5; --neg: #ff6b81;
+    --warn: #ffb454; --radius: 14px; --radius-sm: 10px;
+    --shadow: 0 1px 2px rgba(0,0,0,.4), 0 10px 30px rgba(0,0,0,.28);
+  }
+  * { box-sizing: border-box; }
+  html { -webkit-text-size-adjust: 100%; }
+  body {
+    margin: 0; color: var(--fg);
+    background:
+      radial-gradient(1100px 560px at 100% -10%, rgba(124,92,255,.10), transparent 60%),
+      radial-gradient(900px 480px at -10% 0%, rgba(91,140,255,.10), transparent 55%),
+      var(--bg);
+    font: 14px/1.5 system-ui, -apple-system, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+    -webkit-font-smoothing: antialiased;
+  }
+  header {
+    position: sticky; top: 0; z-index: 5;
+    display: flex; align-items: center; gap: 12px; flex-wrap: wrap;
+    padding: 12px 20px; border-bottom: 1px solid var(--line);
+    background: rgba(11,14,20,.72); backdrop-filter: blur(10px);
+  }
+  header .brand { display: flex; align-items: center; gap: 10px; margin-right: auto; }
+  header .dot { width: 9px; height: 9px; border-radius: 50%; background: var(--pos);
+                box-shadow: 0 0 0 3px rgba(53,208,165,.18); }
+  header h1 { font-size: 15px; margin: 0; font-weight: 650; letter-spacing: .01em; }
+  header .sub { color: var(--faint); font-size: 12px; }
+  header .meta { color: var(--muted); font-size: 12px; }
+  .badge { font-size: 11px; padding: 3px 9px; border-radius: 999px; letter-spacing: .04em;
+           text-transform: uppercase; color: var(--accent);
+           border: 1px solid rgba(91,140,255,.35); background: rgba(91,140,255,.10); }
+
+  .wrap { max-width: 1180px; margin: 0 auto; padding: 20px; display: grid; gap: 18px; }
+  .grid { display: grid; gap: 18px; grid-template-columns: repeat(auto-fit, minmax(320px, 1fr)); }
+  section { background: linear-gradient(180deg, var(--panel), var(--panel-2));
+            border: 1px solid var(--line); border-radius: var(--radius);
+            padding: 16px 18px; box-shadow: var(--shadow); min-width: 0; }
+  section > h2 { font-size: 12px; text-transform: uppercase; letter-spacing: .08em;
+                 color: var(--muted); margin: 0 0 14px; font-weight: 600; }
+  /* Scope note appended to a panel title (e.g. "all sleeves" vs "mega-cap only")
+     so a section can never imply it covers more of the book than it does. */
+  section > h2 .scope { text-transform: none; letter-spacing: .01em;
+                        font-weight: 500; color: var(--faint); }
+  .full { grid-column: 1 / -1; }
+
+  .hero { display: grid; gap: 20px; grid-template-columns: 1.05fr 1fr; align-items: stretch; }
+  .hero .kpis { margin: 14px 0 6px; }
+  .headline .cap { color: var(--muted); font-size: 12px; text-transform: uppercase; letter-spacing: .06em; }
+  .headline .big { font-size: 34px; font-weight: 680; letter-spacing: -.01em; line-height: 1.1;
+                   font-variant-numeric: tabular-nums; margin-top: 2px; }
+  .chartbox { display: flex; flex-direction: column; gap: 6px; min-width: 0; }
+  .chartbox .ctitle { color: var(--muted); font-size: 11px; text-transform: uppercase; letter-spacing: .06em; }
+  .hchart { justify-content: center; }
+
+  .kpis { display: grid; grid-template-columns: repeat(auto-fit, minmax(118px, 1fr)); gap: 10px; }
+  .kpi { background: rgba(255,255,255,.02); border: 1px solid var(--line);
+         border-radius: var(--radius-sm); padding: 10px 12px; }
+  .kpi .label { color: var(--muted); font-size: 11px; text-transform: uppercase; letter-spacing: .04em; }
+  .kpi .value { font-size: 19px; margin-top: 4px; font-variant-numeric: tabular-nums; }
+
+  .bar { height: 8px; border-radius: 6px; background: rgba(255,255,255,.06); overflow: hidden; margin-top: 8px; }
+  .bar > span { display: block; height: 100%; border-radius: 6px;
+                background: linear-gradient(90deg, var(--accent), var(--accent-2)); }
+  .barlabel { display: flex; justify-content: space-between; color: var(--muted); font-size: 11px; margin-top: 6px; }
+
+  .cards { display: grid; gap: 16px; grid-template-columns: repeat(auto-fill, minmax(300px, 1fr)); }
+  .pcard { position: relative; overflow: hidden; min-width: 0;
+           background: linear-gradient(180deg, var(--panel), var(--panel-2));
+           border: 1px solid var(--line); border-radius: var(--radius);
+           padding: 14px 15px; box-shadow: var(--shadow); }
+  .pcard::before { content: ""; position: absolute; inset: 0 0 auto 0; height: 3px; background: var(--accent); }
+  .pcard.up::before { background: var(--pos); }
+  .pcard.down::before { background: var(--neg); }
+  .pcard .phead { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+  .pcard .sym { font-size: 17px; font-weight: 660; }
+  .pcard .leg { color: var(--muted); font-size: 12px; margin: 6px 0 10px; font-variant-numeric: tabular-nums; }
+  .pcard .prow { display: grid; grid-template-columns: repeat(4, 1fr); gap: 8px; margin-bottom: 12px; }
+  .pcard .prow .k { font-size: 10px; color: var(--muted); text-transform: uppercase; letter-spacing: .03em; }
+  .pcard .prow .v { font-size: 14px; margin-top: 2px; font-variant-numeric: tabular-nums; }
+  .charts2 { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+  @media (max-width: 380px) { .charts2 { grid-template-columns: 1fr; } }
+
+  .spark { width: 100%; height: 68px; display: block; }
+  .hero .spark, .hchart .spark { height: 128px; }
+  .spark .area { fill: var(--c); fill-opacity: .13; stroke: none; }
+  .spark .line { fill: none; stroke: var(--c); stroke-width: 2; stroke-linejoin: round;
+                 stroke-linecap: round; vector-effect: non-scaling-stroke; }
+  .spark .dot { fill: var(--c); stroke: var(--bg); stroke-width: 1.5; }
+  .spark .zero { stroke: var(--line); stroke-width: 1; stroke-dasharray: 3 3; vector-effect: non-scaling-stroke; }
+  .nochart { color: var(--faint); font-size: 12px; text-align: center; padding: 26px 0; }
+
+  .table-wrap { overflow-x: auto; -webkit-overflow-scrolling: touch; }
+  table { width: 100%; border-collapse: collapse; font-variant-numeric: tabular-nums; }
+  th, td { text-align: left; padding: 7px 10px; border-bottom: 1px solid var(--line); white-space: nowrap; }
+  thead th { color: var(--muted); font-weight: 600; font-size: 11px; text-transform: uppercase; letter-spacing: .03em; }
+  tbody tr:hover { background: rgba(255,255,255,.02); }
+  td.num, th.num { text-align: right; }
+  .pos { color: var(--pos); } .neg { color: var(--neg); }
+  .empty { color: var(--faint); padding: 10px 0; }
+
+  .pill { display: inline-block; padding: 1px 9px; border-radius: 999px; font-size: 11px; border: 1px solid var(--line); }
+  .pill.strat { color: var(--muted); }
+  /* Sleeve tag on an open-position card (same chip family as the bake-off table). */
+  .pill.sleeve { color: var(--accent); border-color: rgba(91,140,255,.35);
+                 background: rgba(91,140,255,.10); }
+  .pill.open { color: var(--pos); border-color: rgba(53,208,165,.4); background: rgba(53,208,165,.08); }
+  .pill.skip { color: var(--warn); border-color: rgba(255,180,84,.35); background: rgba(255,180,84,.07); }
+  .pill.win { color: var(--pos); border-color: rgba(53,208,165,.4); background: rgba(53,208,165,.08); }
+  /* STALL MARKER: a sleeve whose last completed cycle is older than the
+     publisher's threshold. Loud on purpose -- a hung harness used to be
+     indistinguishable from a quiet market. */
+  .pill.stale { color: var(--neg); border-color: rgba(255,107,129,.45);
+                background: rgba(255,107,129,.10); font-weight: 640;
+                letter-spacing: .04em; }
+  .age { color: var(--muted); font-variant-numeric: tabular-nums; }
+  .dash { color: var(--faint); }
+  tr.stalled td { background: rgba(255,107,129,.05); }
+  /* WHOLE-PAGE stall banner: the snapshot ITSELF has not been regenerated within
+     the threshold, i.e. the publisher (not just one sleeve) is dead. This is the
+     true "the harness is down" signal, so it is page-wide, not a table cell. */
+  .stalebanner {
+    padding: 10px 20px; text-align: center; font-weight: 640; letter-spacing: .04em;
+    color: var(--neg); background: rgba(255,107,129,.12);
+    border-bottom: 1px solid rgba(255,107,129,.45);
+  }
+  .meta.stale-meta { color: var(--neg); font-weight: 620; }
+  /* STALE-SHELL banner: the browser is running an OLD cached index.html against a
+     NEW data.json and one cache-busting reload has ALREADY failed to fix it. Warn
+     coloured, not error red -- the DATA below is current, it is the CODE drawing
+     it that is out of date, so the page stays usable while it says so. */
+  .shellbanner {
+    color: var(--warn); background: rgba(255,180,84,.12);
+    border-bottom: 1px solid rgba(255,180,84,.45);
+    letter-spacing: .02em; font-weight: 620;
+  }
+
+  tr.lead td { font-weight: 620; }
+  .rank { color: var(--faint); font-variant-numeric: tabular-nums; }
+  .holds { display: grid; gap: 8px; margin-top: 14px; }
+  .hold { display: flex; align-items: baseline; gap: 8px; flex-wrap: wrap;
+          font-size: 12px; color: var(--muted); }
+  .hold .hlabel { color: var(--fg); font-weight: 600; }
+  .hold .hlist { color: var(--muted); font-variant-numeric: tabular-nums; }
+
+  footer { color: var(--faint); font-size: 11px; text-align: center; padding: 8px 20px 28px; }
+
+  @media (max-width: 720px) {
+    .hero { grid-template-columns: 1fr; }
+    .wrap { padding: 14px; gap: 14px; }
+    .headline .big { font-size: 28px; }
+  }
+</style>
+</head>
+<body>
+<header>
+  <div class="brand">
+    <span class="dot"></span>
+    <h1>Paper Harness</h1>
+    <span class="sub">public snapshot</span>
+  </div>
+  <span class="badge">paper</span>
+  <span class="meta" id="generated">loading&hellip;</span>
+  <span class="meta" id="updated"></span>
+</header>
+<div class="stalebanner" id="snapstale" hidden></div>
+<div class="stalebanner shellbanner" id="shellstale" hidden></div>
+
+<div class="wrap">
+  <section class="full" id="hero-panel">
+    <h2>Portfolio<span class="scope" id="scope-portfolio"></span></h2>
+    <div class="hero">
+      <div class="hpanel">
+        <div class="headline">
+          <div class="cap" id="hero-cap">Total P&amp;L</div>
+          <div class="big" id="hero-total">-</div>
+        </div>
+        <div class="kpis" id="hero-kpis"></div>
+        <div class="bar"><span id="budget-bar" style="width:0%"></span></div>
+        <div class="barlabel"><span id="budget-lo">-</span><span id="budget-hi">-</span></div>
+      </div>
+      <div class="chartbox hchart">
+        <span class="ctitle" id="pnl-title">Total P&amp;L over time</span>
+        <div id="pnl-chart"><div class="nochart">no data yet</div></div>
+      </div>
+    </div>
+  </section>
+
+  <section class="full" id="sleeves-panel" style="display:none">
+    <h2>Strategy bake-off</h2>
+    <div class="table-wrap" id="sleeves"></div>
+    <div class="holds" id="sleeve-holds"></div>
+  </section>
+
+  <section class="full" id="positions-panel">
+    <h2>Open Positions<span class="scope" id="scope-positions"></span></h2>
+    <div class="cards" id="positions"></div>
+  </section>
+
+  <section class="full" id="closed-panel">
+    <h2>Closed Trades<span class="scope" id="scope-closed"></span></h2>
+    <div class="table-wrap" id="closed"></div>
+  </section>
+
+  <div class="grid">
+    <section id="metrics-panel">
+      <h2>Performance Metrics<span class="scope" id="scope-metrics"></span></h2>
+      <div class="kpis" id="metrics-kpis"></div>
+      <div class="table-wrap" id="baselines"></div>
+    </section>
+    <section id="providers-panel">
+      <h2>Provider Bake-off<span class="scope" id="scope-providers"></span></h2>
+      <div class="table-wrap" id="providers"></div>
+    </section>
+    <section id="decisions-panel">
+      <h2>Recent Decisions<span class="scope" id="scope-decisions"></span></h2>
+      <div class="table-wrap" id="decisions"></div>
+    </section>
+    <section id="rejections-panel">
+      <h2>Rejections<span class="scope" id="scope-rejections"></span></h2>
+      <div class="table-wrap" id="rejections"></div>
+    </section>
+  </div>
+</div>
+<footer>Static paper-trading snapshot &mdash; long options only, no live orders, no credentials.</footer>
+
+<script>
+const REFRESH_MS = 60000;
+
+// ------------------------------------------------------------------------- //
+// STALE-SHELL SELF-HEAL
+// ------------------------------------------------------------------------- //
+// THE BUG: data.json is fetched with {cache:"no-store"} so the DATA is always
+// fresh, but index.html is an ordinary cacheable document, so a browser can keep
+// an OLD shell indefinitely. Old JS then renders NEW data and the two disagree
+// SILENTLY -- the previous shell read only snap.open_positions (the PRIMARY
+// sleeve) while this one reads snap.all_open_positions (the whole book), so with
+// mega-cap flat a cached page showed an EMPTY open-positions section while
+// data.json genuinely carried RIVN and JD. The figures look plausible; they are
+// drawn by dead code. The <head> cache-control meta tags are defence in depth
+// only -- they are advisory and cannot evict a copy the browser already has --
+// so THIS check is the actual fix. Do not remove it.
+//
+// PAGE_VERSION is the publisher's sha256 of the page TEMPLATE, baked into this
+// shell at render time; data.json carries the SAME value under page_version. If
+// they differ, this document is stale.
+const PAGE_VERSION = "d372fe89fd80";
+
+// sessionStorage slot recording which version we have ALREADY navigated for.
+// This is the infinite-reload guard: without it, an environment that can never
+// deliver the new shell (aggressive CDN, offline cache, service worker, proxy)
+// would reload this page forever.
+const RELOAD_MARK = "money.dashboard.shell.reload";
+// An ABSOLUTE ceiling on self-heal navigations per browsing session, independent
+// of which version asked. The version-keyed mark alone is not enough: if two
+// different index.html builds are live across CDN edges at once, data.json can
+// ALTERNATE page_version, and each new value resets a version-keyed guard -- an
+// adversarial probe drove that to an unbounded reload loop. This counter cannot
+// be reset by the server changing its mind.
+const RELOAD_COUNT = "money.dashboard.shell.reloads";
+const RELOAD_MAX = 3;
+
+// sessionStorage can THROW outright (private mode, blocked third-party storage,
+// sandboxed iframe), so every access is guarded. Failing to read is treated as
+// "no attempt recorded"; failing to WRITE means we cannot remember an attempt --
+// and an unremembered reload is an infinite reload, so we then refuse to reload.
+function shellReloadMark() {
+  try { return sessionStorage.getItem(RELOAD_MARK); } catch (e) { return null; }
+}
+// Write-then-READ-BACK: a store whose setItem succeeds but whose value does not
+// survive (privacy shields that clear site data on navigate, ephemeral storage) or
+// whose getItem throws asymmetrically would leave the guard blind to its own mark,
+// i.e. an unbounded loop. If the value does not come back, treat it as unwritable.
+function markShellReload(v) {
+  try {
+    sessionStorage.setItem(RELOAD_MARK, v);
+    if (sessionStorage.getItem(RELOAD_MARK) !== v) { return false; }
+    const n = shellReloadCount() + 1;
+    sessionStorage.setItem(RELOAD_COUNT, String(n));
+    return true;
+  } catch (e) { return false; }
+}
+function shellReloadCount() {
+  try { return parseInt(sessionStorage.getItem(RELOAD_COUNT), 10) || 0; }
+  catch (e) { return 0; }
+}
+// STORAGE-INDEPENDENT guard. Landing on ...?v=<wanted> is itself proof that this
+// exact attempt was already made, whatever storage did or did not remember. This
+// closes the loop even when sessionStorage lies about persisting.
+function alreadyTried(wanted) {
+  try {
+    return String(location.search || "").indexOf("v=" + encodeURIComponent(wanted)) >= 0;
+  } catch (e) { return false; }
+}
+
+// Visible, honest fallback when reloading cannot fix it. The dashboard keeps
+// rendering underneath: degraded, never blank.
+function showShellBanner(wanted) {
+  const banner = el("shellstale");
+  if (!banner) return;
+  if (!wanted) { banner.textContent = ""; banner.hidden = true; return; }
+  banner.textContent =
+    "OUT OF DATE - your browser is showing a cached copy of this page (build " +
+    PAGE_VERSION + ") but the data below was published for build " + wanted +
+    ". An automatic refresh did not pick up the new version. Press Ctrl+F5 " +
+    "(Cmd+Shift+R on a Mac) to force a reload. Until then the figures are " +
+    "current data drawn by an out-of-date page and some sections may be wrong " +
+    "or missing.";
+  banner.hidden = false;
+}
+
+// Returns TRUE when a cache-busting navigation has been started and the caller
+// must NOT render (a stale shell drawing fresh data is the failure mode itself).
+// Returns FALSE to render normally -- including on the banner path.
+function healStaleShell(snap) {
+  const wanted = snap && snap.page_version;
+  // BACKWARD COMPAT: a data.json published before page_version existed carries
+  // no such key. Behave EXACTLY as before -- no reload, no banner.
+  if (!wanted || wanted === PAGE_VERSION) { showShellBanner(null); return false; }
+
+  // LOOP GUARD. We already navigated for exactly this version and are still
+  // running the old shell, so something between us and the origin cannot deliver
+  // the new document. Reloading again would loop forever: stop, and say so.
+  if (shellReloadMark() === wanted) { showShellBanner(wanted); return false; }
+
+  // STORAGE-FREE guard: we are already AT the cache-busting URL for this version,
+  // so the attempt provably happened even if storage forgot it.
+  if (alreadyTried(wanted)) { showShellBanner(wanted); return false; }
+
+  // ABSOLUTE cap, so alternating server versions cannot reset us into a loop.
+  if (shellReloadCount() >= RELOAD_MAX) { showShellBanner(wanted); return false; }
+
+  // Cannot record the attempt -> cannot bound the retries -> do not retry.
+  if (!markShellReload(wanted)) { showShellBanner(wanted); return false; }
+
+  // A plain in-place reload can be answered from the very cache we are trying to
+  // escape, so navigate to a DIFFERENT URL instead: the query string makes a
+  // distinct cache entry. replace() keeps this dead shell out of the history.
+  try {
+    location.replace(location.pathname + "?v=" + encodeURIComponent(wanted));
+    return true;
+  } catch (e) {
+    // No navigation possible (sandboxed / embedded): fall back to the banner.
+    showShellBanner(wanted);
+    return false;
+  }
+}
+
+function fmtMoney(v) {
+  if (v === null || v === undefined || !isFinite(v)) return "-";
+  return (v < 0 ? "-$" : "$") + Math.abs(v).toFixed(2);
+}
+function fmtNum(v) {
+  if (v === null || v === undefined || !isFinite(v)) return "-";
+  return Number(v).toFixed(2);
+}
+function fmtPct(v) {
+  if (v === null || v === undefined || !isFinite(v)) return "-";
+  return (v * 100).toFixed(2) + "%";
+}
+function sgn(v) { return v > 0 ? "pos" : (v < 0 ? "neg" : ""); }
+function esc(s) {
+  return String(s === null || s === undefined ? "" : s)
+    .replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
+}
+function empty(msg) { return '<div class="empty">' + esc(msg) + "</div>"; }
+function el(id) { return document.getElementById(id); }
+function pnlCell(v) {
+  if (v === null || v === undefined) return '<td class="num">-</td>';
+  return '<td class="num ' + sgn(v) + '">' + fmtMoney(v) + "</td>";
+}
+function legText(legs) {
+  return (legs || []).map(function (l) {
+    return esc(l.side + " " + l.qty + "x " + l.symbol);
+  }).join(" &middot; ");
+}
+
+// Inline SVG line/area chart -- no external dependency. kind: "price" | "pnl".
+function chartSvg(series, key, kind) {
+  const W = 340, H = 80, mL = 5, mR = 5, mT = 10, mB = 12;
+  const iw = W - mL - mR, ih = H - mT - mB;
+  const vals = [];
+  (series || []).forEach(function (d, i) {
+    const v = d[key];
+    if (v !== null && v !== undefined && isFinite(v)) vals.push({ i: i, v: +v });
+  });
+  if (!vals.length) return '<div class="nochart">no data yet</div>';
+  const n = (series || []).length;
+  const xs = function (i) { return n <= 1 ? iw / 2 : (i / (n - 1)) * iw; };
+  let lo = Math.min.apply(null, vals.map(function (p) { return p.v; }));
+  let hi = Math.max.apply(null, vals.map(function (p) { return p.v; }));
+  const zeroIn = kind === "pnl" && lo < 0 && hi > 0;
+  if (kind === "pnl") { lo = Math.min(lo, 0); hi = Math.max(hi, 0); }
+  if (lo === hi) { hi = lo + 1; lo = lo - 1; }
+  const pad = (hi - lo) * 0.14; lo -= pad; hi += pad;
+  const X = function (i) { return (mL + xs(i)).toFixed(1); };
+  const Y = function (v) { return (mT + (ih - ((v - lo) / (hi - lo)) * ih)).toFixed(1); };
+  const last = vals[vals.length - 1];
+  const color = kind === "pnl" ? (last.v < 0 ? "var(--neg)" : "var(--pos)") : "var(--accent)";
+  let s = '<svg class="spark" style="--c:' + color +
+    '" viewBox="0 0 ' + W + ' ' + H + '" preserveAspectRatio="none" aria-hidden="true">';
+  if (zeroIn) {
+    s += '<line class="zero" x1="' + mL + '" y1="' + Y(0) +
+      '" x2="' + (mL + iw) + '" y2="' + Y(0) + '"/>';
+  }
+  if (vals.length > 1) {
+    const baseV = kind === "pnl" ? 0 : lo;
+    const line = vals.map(function (p) { return X(p.i) + " " + Y(p.v); });
+    const area = "M " + line.join(" L ") + " L " + X(last.i) + " " + Y(baseV) +
+      " L " + X(vals[0].i) + " " + Y(baseV) + " Z";
+    s += '<path class="area" d="' + area + '"/>';
+    s += '<polyline class="line" points="' +
+      vals.map(function (p) { return X(p.i) + "," + Y(p.v); }).join(" ") + '"/>';
+  }
+  s += '<circle class="dot" cx="' + X(last.i) + '" cy="' + Y(last.v) + '" r="2.8"/>';
+  return s + "</svg>";
+}
+
+// SCOPE LABELLING. The aggregate (--all) payload carries cross-sleeve
+// `portfolio` totals + a tagged `all_open_positions` list; a single-db payload
+// carries NEITHER and every panel is then the one book it always was. When the
+// aggregate IS present, the hero/open-positions panels cover EVERY sleeve while
+// the P&L curve, closed trades, metrics, providers and decisions remain
+// primary-sleeve-only -- so each is labelled explicitly and cannot mislead.
+const PRIMARY_SCOPE = "mega-cap sleeve only";
+
+function setScope(id, text) {
+  const n = el(id);
+  if (n) n.textContent = text ? " — " + text : "";
+}
+
+function renderScopes(agg) {
+  setScope("scope-portfolio", agg ? "whole book, all sleeves" : "");
+  setScope("scope-positions", agg ? "all sleeves" : "");
+  setScope("scope-closed", agg ? PRIMARY_SCOPE : "");
+  setScope("scope-metrics", agg ? PRIMARY_SCOPE : "");
+  setScope("scope-providers", agg ? PRIMARY_SCOPE : "");
+  setScope("scope-decisions", agg ? PRIMARY_SCOPE : "");
+  setScope("scope-rejections", agg ? PRIMARY_SCOPE : "");
+}
+
+// `b` is snapshot.portfolio (cross-sleeve) when aggregated, else snapshot.budget
+// (the single book). All arithmetic is done in Python; this only formats.
+function renderHero(b, pnlSeries, agg) {
+  b = b || {};
+  const sfx = agg ? " (all sleeves)" : "";
+  const t = el("hero-total");
+  t.textContent = fmtMoney(b.total_pnl);
+  t.className = "big " + sgn(b.total_pnl);
+  el("hero-cap").textContent = agg
+    ? "Total P&L across all " + (b.sleeve_count || 0) + " sleeves"
+    : "Total P&L";
+  // the equity curve is genuinely primary-sleeve-only -- say so
+  el("pnl-title").textContent = agg
+    ? "P&L over time (mega-cap sleeve only)"
+    : "Total P&L over time";
+  const kpis = [
+    ["Realized" + sfx, fmtMoney(b.realized_pnl), sgn(b.realized_pnl)],
+    ["Unrealized" + sfx, fmtMoney(b.unrealized_pnl), sgn(b.unrealized_pnl)],
+    ["Open premium" + sfx, fmtMoney(b.open_premium) + " / " + fmtMoney(b.total_open_cap), ""],
+    ["Open / max" + sfx, (b.open_count || 0) + " / " + (b.max_concurrent || 0), ""],
+  ];
+  el("hero-kpis").innerHTML = kpis.map(function (k) {
+    return '<div class="kpi"><div class="label">' + esc(k[0]) +
+      '</div><div class="value ' + k[2] + '">' + esc(k[1]) + "</div></div>";
+  }).join("");
+  const pct = Math.max(0, Math.min(100, b.budget_used_pct || 0));
+  el("budget-bar").style.width = pct + "%";
+  el("budget-lo").textContent = "Week spent " + fmtMoney(b.week_spent) +
+    " of " + fmtMoney(b.budget_weekly) + sfx;
+  el("budget-hi").textContent = pct.toFixed(0) + "% used";
+  el("pnl-chart").innerHTML = chartSvg(pnlSeries, "total_pnl", "pnl");
+}
+
+// `rows` is snapshot.all_open_positions (every sleeve, each entry tagged with
+// sleeve_key/sleeve_label) when aggregated, else snapshot.open_positions. The
+// card markup is identical either way; a tagged row just gains a sleeve chip.
+function renderPositions(rows) {
+  rows = rows || [];
+  const box = el("positions");
+  if (!rows.length) { box.innerHTML = empty("No open positions yet."); return; }
+  box.innerHTML = rows.map(function (p) {
+    const u = p.unrealized_pnl;
+    const state = u > 0 ? "up" : (u < 0 ? "down" : "");
+    const ret = (p.entry_cost && u !== null && u !== undefined) ? u / p.entry_cost : null;
+    const tag = p.sleeve_label
+      ? '<span class="pill sleeve">' + esc(p.sleeve_label) + "</span>" : "";
+    const kpi = [
+      ["Entry", fmtMoney(p.entry_cost), ""],
+      ["Mark", fmtNum(p.last_mark), ""],
+      ["Unreal.", fmtMoney(u), sgn(u)],
+      ["Return", fmtPct(ret), sgn(ret)],
+    ];
+    return '<div class="pcard ' + state + '">' +
+      '<div class="phead"><span class="sym">' + esc(p.underlying) +
+      '</span><span class="pill strat">' + esc(p.strategy) + "</span>" + tag +
+      "</div>" +
+      '<div class="leg">' + legText(p.legs) + "</div>" +
+      '<div class="prow">' + kpi.map(function (k) {
+        return '<div><div class="k">' + esc(k[0]) + '</div><div class="v ' + k[2] +
+          '">' + esc(k[1]) + "</div></div>";
+      }).join("") + "</div>" +
+      '<div class="charts2">' +
+      '<div class="chartbox"><span class="ctitle">Price</span>' +
+      chartSvg(p.history, "price", "price") + "</div>" +
+      '<div class="chartbox"><span class="ctitle">P&amp;L</span>' +
+      chartSvg(p.history, "pnl", "pnl") + "</div></div></div>";
+  }).join("");
+}
+
+function renderClosed(rows) {
+  rows = rows || [];
+  const box = el("closed");
+  if (!rows.length) { box.innerHTML = empty("No closed trades yet."); return; }
+  let html = "<table><thead><tr><th>Underlying</th><th>Strategy</th>" +
+    "<th class='num'>Entry</th><th class='num'>Exit value</th>" +
+    "<th class='num'>Realized</th><th>Exited</th></tr></thead><tbody>";
+  for (const p of rows) {
+    html += "<tr><td>" + esc(p.underlying) + "</td><td>" + esc(p.strategy) +
+      "</td><td class='num'>" + fmtMoney(p.entry_cost) + "</td><td class='num'>" +
+      (p.exit_value === null || p.exit_value === undefined ? "-" : fmtMoney(p.exit_value)) +
+      "</td>" + pnlCell(p.realized_pnl) + "<td>" + esc(p.exit_ts) + "</td></tr>";
+  }
+  box.innerHTML = html + "</tbody></table>";
+}
+
+function renderMetrics(data) {
+  data = data || {};
+  const m = data.metrics || {};
+  const kpis = [
+    ["Closed trades", String(data.n_closed || 0)],
+    ["Win rate", fmtPct(m.win_rate)],
+    ["Expectancy", fmtMoney(m.expectancy)],
+    ["Total P&L", fmtMoney(m.total_pnl)],
+    ["Return", fmtPct(m.return_pct)],
+    ["Profit factor", (m.profit_factor === null || m.profit_factor === undefined)
+      ? "∞" : Number(m.profit_factor).toFixed(2)],
+    ["Max drawdown", fmtMoney(m.max_drawdown)],
+  ];
+  el("metrics-kpis").innerHTML = kpis.map(function (k) {
+    return '<div class="kpi"><div class="label">' + esc(k[0]) +
+      '</div><div class="value">' + esc(k[1]) + "</div></div>";
+  }).join("");
+
+  const bs = data.baselines || [];
+  const excess = data.excess_pnl || {};
+  const box = el("baselines");
+  if (!bs.length) { box.innerHTML = empty("No baselines."); return; }
+  let html = "<table><thead><tr><th>Baseline</th>" +
+    "<th class='num'>Total P&L</th><th class='num'>Return</th>" +
+    "<th class='num'>Strategy excess</th></tr></thead><tbody>";
+  for (const b of bs) {
+    html += "<tr><td>" + esc(b.name) + "</td>" + pnlCell(b.total_pnl) +
+      "<td class='num'>" + fmtPct(b.return_pct) + "</td>" +
+      pnlCell(excess[b.name]) + "</tr>";
+  }
+  box.innerHTML = html + "</tbody></table>";
+}
+
+function renderDecisions(rows) {
+  rows = (rows || []).slice().reverse();
+  const box = el("decisions");
+  if (!rows.length) { box.innerHTML = empty("No decisions logged."); return; }
+  let html = "<table><thead><tr><th>Time</th><th>Underlying</th>" +
+    "<th>Action</th><th>Reason</th></tr></thead><tbody>";
+  for (const d of rows) {
+    const p = d.action === "OPEN" ? "open" : "skip";
+    html += "<tr><td>" + esc(d.ts) + "</td><td>" + esc(d.underlying) +
+      "</td><td><span class='pill " + p + "'>" + esc(d.action) +
+      "</span></td><td>" + esc(d.reason) + "</td></tr>";
+  }
+  box.innerHTML = html + "</tbody></table>";
+}
+
+function renderRejections(rows) {
+  rows = (rows || []).slice().reverse();
+  const box = el("rejections");
+  if (!rows.length) { box.innerHTML = empty("No rejections."); return; }
+  let html = "<table><thead><tr><th>Time</th><th>Underlying</th>" +
+    "<th>Reason</th></tr></thead><tbody>";
+  for (const d of rows) {
+    html += "<tr><td>" + esc(d.ts) + "</td><td>" + esc(d.underlying) +
+      "</td><td>" + esc(d.reason) + "</td></tr>";
+  }
+  box.innerHTML = html + "</tbody></table>";
+}
+
+function renderProviders(data) {
+  data = data || {};
+  const rows = data.providers || [];
+  const box = el("providers");
+  if (!rows.length) { box.innerHTML = empty("No provider samples."); return; }
+  let html = "<table><thead><tr><th>Provider</th><th>Latency</th>" +
+    "<th class='num'>Samples</th><th class='num'>Avg coverage</th>" +
+    "<th class='num'>Avg mid</th></tr></thead><tbody>";
+  for (const p of rows) {
+    const cov = (p.avg_coverage === null || p.avg_coverage === undefined)
+      ? "-" : (p.avg_coverage * 100).toFixed(1) + "%";
+    const mid = (p.avg_mid === null || p.avg_mid === undefined) ? "-" : fmtMoney(p.avg_mid);
+    html += "<tr><td>" + esc(p.provider) + "</td><td>" + esc(p.latency || "-") +
+      "</td><td class='num'>" + (p.samples || 0) + "</td><td class='num'>" + cov +
+      "</td><td class='num'>" + mid + "</td></tr>";
+  }
+  box.innerHTML = html + "</tbody></table>";
+}
+
+// Strategy bake-off leaderboard. Rendered only when data.json carries a
+// non-empty `sleeves` array (the aggregate build); a single-db snapshot omits
+// it, so the panel stays hidden and the page looks exactly as before.
+function sleeveTotal(s) {
+  const b = s.budget || {};
+  const v = b.total_pnl;
+  return (v === null || v === undefined || !isFinite(v)) ? 0 : +v;
+}
+
+// ---------------------------------------------------------------------------
+// LIVE STALENESS
+// ---------------------------------------------------------------------------
+// Each sleeve carries the age of its last COMPLETED cycle in minutes, computed in
+// PYTHON from the sleeve's heartbeat file -- and therefore FROZEN at publish time.
+// Only the mega-cap sleeve publishes, and only inside its trigger window, so from
+// Friday afternoon to Monday morning (and after any morning the laptop sleeps
+// through) data.json is byte-identical. Rendering the published number as-is would
+// keep saying "12m ago" with no marker for ~65 hours -- the page would be blind to
+// the exact stall it exists to detect.
+//
+// So every age is RE-DERIVED here against the live browser clock:
+//     displayed age = published age + (now - when the snapshot was generated)
+// and ``stale`` is re-evaluated against the threshold the publisher PUBLISHED
+// (``stale_after_min``) rather than a copy hardcoded in this page. The frozen
+// server-computed fields are still read as the base and as the fallback, so an
+// older data.json keeps rendering exactly as before.
+let SNAP_EPOCH_MS = null;    // when the CURRENT data.json was generated (epoch ms)
+let STALE_AFTER_MIN = null;  // published threshold; null == unknown, do not re-judge
+
+function snapEpochMs(snap) {
+  const ms = +snap.generated_at_epoch_ms;
+  if (isFinite(ms) && ms > 0) return ms;
+  // Backward-compat: a data.json published before the epoch field existed. The
+  // ISO string is NAIVE LOCAL, so this is only exact for a viewer in the
+  // harness's own timezone -- which is why the epoch above is preferred.
+  const parsed = Date.parse(snap.generated_at || "");
+  return isFinite(parsed) ? parsed : null;
+}
+
+// Minutes elapsed since the snapshot was generated, or null when unknowable.
+// Clamped at 0: a clock behind the publisher's must never make things look FRESHER
+// than published, and must never invent a negative age.
+function elapsedMin() {
+  if (SNAP_EPOCH_MS === null) return null;
+  return Math.max(0, (Date.now() - SNAP_EPOCH_MS) / 60000);
+}
+
+function liveAgeMin(s) {
+  const base = +s.last_run_age_min;
+  if (s.last_run_age_min === null || s.last_run_age_min === undefined ||
+      !isFinite(base)) return null;                 // no heartbeat -> unknown
+  return base + (elapsedMin() || 0);
+}
+
+// ``published`` is the server-computed flag, used only when no threshold was
+// published (old data.json) or the age is unknown.
+function isStale(mins, published) {
+  if (mins === null || mins === undefined || !isFinite(mins)) return !!published;
+  if (STALE_AFTER_MIN === null) return !!published;
+  return mins > STALE_AFTER_MIN;
+}
+
+function fmtAge(mins) {
+  if (mins === null || mins === undefined || !isFinite(mins)) return "";
+  const m = Math.max(0, Math.round(+mins));
+  if (m < 60) return m + "m ago";
+  const h = Math.floor(m / 60);
+  if (h < 24) return h + "h ago";
+  return Math.floor(h / 24) + "d ago";
+}
+
+function lastRunCell(s) {
+  const age = liveAgeMin(s);
+  const txt = fmtAge(age);
+  if (!txt) return "<span class='dash'>-</span>";   // no heartbeat -> unknown
+  let out = "<span class='age'>" + esc(txt) + "</span>";
+  if (isStale(age, s.stale)) out += " <span class='pill stale'>STALE</span>";
+  else if (s.last_run_ok === false) out += " <span class='pill skip'>failed</span>";
+  return out;
+}
+
+// The SNAPSHOT's own age -- the true "is the harness alive at all?" signal. A
+// sleeve row can only ever be as fresh as the file it came from, so when the whole
+// data.json has gone cold the page says so page-wide instead of quietly rendering
+// stale numbers next to the browser's own (always-current) clock.
+function renderSnapshotAge(snap) {
+  const age = elapsedMin();
+  const txt = fmtAge(age);
+  const stamp = snap.generated_at || "?";
+  el("generated").textContent = "snapshot " + stamp + (txt ? " (" + txt + ")" : "");
+  const dead = isStale(age, false);
+  el("generated").className = dead ? "meta stale-meta" : "meta";
+  const banner = el("snapstale");
+  banner.textContent = dead
+    ? "STALE - last snapshot " + txt + " (" + stamp + "). The harness has stopped " +
+      "publishing; every figure below is frozen at that time."
+    : "";
+  banner.hidden = !dead;
+}
+
+function renderSleeves(rows) {
+  const panel = el("sleeves-panel");
+  if (!panel) return;
+  rows = (rows || []).slice();
+  if (!rows.length) { panel.style.display = "none"; return; }
+  panel.style.display = "";
+
+  // Leaderboard: highest total P&L first.
+  rows.sort(function (a, b) { return sleeveTotal(b) - sleeveTotal(a); });
+
+  let html = "<table><thead><tr><th class='num'>#</th><th>Strategy</th>" +
+    "<th>Type</th><th>Universe</th><th class='num'>Open</th>" +
+    "<th class='num'>Closed</th><th class='num'>Realized</th>" +
+    "<th class='num'>Unrealized</th><th class='num'>Total P&amp;L</th>" +
+    "<th class='num'>Week</th><th>Last run</th></tr></thead><tbody>";
+  rows.forEach(function (s, i) {
+    const b = s.budget || {};
+    const cls = ((i === 0 && s.has_data) ? "lead " : "") +
+      (isStale(liveAgeMin(s), s.stale) ? "stalled" : "");
+    let label = esc(s.label);
+    if (!s.has_data) label += " <span class='pill skip'>no data</span>";
+    const week = fmtMoney(b.week_spent) + " / " + fmtMoney(b.budget_weekly);
+    html += "<tr class='" + cls + "'><td class='num rank'>" + (i + 1) +
+      "</td><td>" + label + "</td>" +
+      "<td><span class='pill strat'>" + esc(s.strategy) + "</span></td>" +
+      "<td>" + esc(s.universe) + "</td>" +
+      "<td class='num'>" + (s.open_count || 0) + "</td>" +
+      "<td class='num'>" + (s.closed_count || 0) + "</td>" +
+      pnlCell(b.realized_pnl) + pnlCell(b.unrealized_pnl) + pnlCell(b.total_pnl) +
+      "<td class='num'>" + esc(week) + "</td>" +
+      "<td>" + lastRunCell(s) + "</td></tr>";
+  });
+  el("sleeves").innerHTML = html + "</tbody></table>";
+
+  // Optional compact detail: each sleeve's open holdings (underlyings only).
+  const holds = rows.filter(function (s) {
+    return (s.open_positions || []).length;
+  });
+  el("sleeve-holds").innerHTML = holds.map(function (s) {
+    const names = (s.open_positions || []).map(function (p) {
+      return esc(p.underlying);
+    }).join(", ");
+    return "<div class='hold'><span class='hlabel'>" + esc(s.label) +
+      "</span><span class='hlist'>" + names + "</span></div>";
+  }).join("");
+}
+
+async function refresh() {
+  try {
+    const r = await fetch("data.json", { cache: "no-store" });
+    if (!r.ok) throw new Error("data.json -> " + r.status);
+    const snap = await r.json();
+    // STALE-SHELL CHECK, before ANY rendering: if this document is an old cached
+    // shell it must not draw the new payload at all -- that silent mis-render is
+    // precisely the bug. TRUE == a cache-busting navigation is under way.
+    if (healStaleShell(snap)) return;
+    // Arm the LIVE clock terms BEFORE anything renders an age: every age below is
+    // re-derived from these two against Date.now(), so a frozen data.json ages on
+    // screen instead of pretending it was just published.
+    SNAP_EPOCH_MS = snapEpochMs(snap);
+    const threshold = +snap.stale_after_min;
+    STALE_AFTER_MIN = (isFinite(threshold) && threshold > 0) ? threshold : null;
+    // Cross-sleeve aggregate when present; EXACT legacy single-db render when not.
+    const agg = !!snap.portfolio;
+    renderScopes(agg);
+    renderHero(agg ? snap.portfolio : snap.budget, snap.pnl_series, agg);
+    renderSleeves(snap.sleeves);
+    renderPositions(snap.all_open_positions || snap.open_positions);
+    // Same whole-book rule as open positions: a trade closed by a NON-primary
+    // sleeve lives only in all_closed_trades (the top-level list is the primary
+    // sleeve alone), so prefer it and fall back for a single-db payload.
+    renderClosed(snap.all_closed_trades || snap.closed_trades);
+    renderMetrics(snap.metrics);
+    renderDecisions(snap.decisions);
+    renderRejections(snap.rejections);
+    renderProviders(snap.providers);
+    renderSnapshotAge(snap);
+    // Explicitly the PAGE's own refresh time, not the harness's. On its own this
+    // line made a frozen page look live; it now sits next to the snapshot's real
+    // age and the page-wide stale banner.
+    el("updated").textContent = "page refreshed " + new Date().toLocaleTimeString();
+  } catch (e) {
+    el("updated").textContent = "error: " + e.message;
+  }
+}
+
+refresh();
+setInterval(refresh, REFRESH_MS);
+</script>
+</body>
+</html>
