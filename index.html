@@ -1,0 +1,429 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Money - Paper Harness (Public Snapshot)</title>
+<style>
+  :root {
+    --bg: #0b0e14; --panel: #141a26; --panel-2: #1a2130; --line: #242c3d;
+    --fg: #e9edf6; --muted: #8b95ab; --faint: #5c6577;
+    --accent: #5b8cff; --accent-2: #7c5cff; --pos: #35d0a5; --neg: #ff6b81;
+    --warn: #ffb454; --radius: 14px; --radius-sm: 10px;
+    --shadow: 0 1px 2px rgba(0,0,0,.4), 0 10px 30px rgba(0,0,0,.28);
+  }
+  * { box-sizing: border-box; }
+  html { -webkit-text-size-adjust: 100%; }
+  body {
+    margin: 0; color: var(--fg);
+    background:
+      radial-gradient(1100px 560px at 100% -10%, rgba(124,92,255,.10), transparent 60%),
+      radial-gradient(900px 480px at -10% 0%, rgba(91,140,255,.10), transparent 55%),
+      var(--bg);
+    font: 14px/1.5 system-ui, -apple-system, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+    -webkit-font-smoothing: antialiased;
+  }
+  header {
+    position: sticky; top: 0; z-index: 5;
+    display: flex; align-items: center; gap: 12px; flex-wrap: wrap;
+    padding: 12px 20px; border-bottom: 1px solid var(--line);
+    background: rgba(11,14,20,.72); backdrop-filter: blur(10px);
+  }
+  header .brand { display: flex; align-items: center; gap: 10px; margin-right: auto; }
+  header .dot { width: 9px; height: 9px; border-radius: 50%; background: var(--pos);
+                box-shadow: 0 0 0 3px rgba(53,208,165,.18); }
+  header h1 { font-size: 15px; margin: 0; font-weight: 650; letter-spacing: .01em; }
+  header .sub { color: var(--faint); font-size: 12px; }
+  header .meta { color: var(--muted); font-size: 12px; }
+  .badge { font-size: 11px; padding: 3px 9px; border-radius: 999px; letter-spacing: .04em;
+           text-transform: uppercase; color: var(--accent);
+           border: 1px solid rgba(91,140,255,.35); background: rgba(91,140,255,.10); }
+
+  .wrap { max-width: 1180px; margin: 0 auto; padding: 20px; display: grid; gap: 18px; }
+  .grid { display: grid; gap: 18px; grid-template-columns: repeat(auto-fit, minmax(320px, 1fr)); }
+  section { background: linear-gradient(180deg, var(--panel), var(--panel-2));
+            border: 1px solid var(--line); border-radius: var(--radius);
+            padding: 16px 18px; box-shadow: var(--shadow); min-width: 0; }
+  section > h2 { font-size: 12px; text-transform: uppercase; letter-spacing: .08em;
+                 color: var(--muted); margin: 0 0 14px; font-weight: 600; }
+  .full { grid-column: 1 / -1; }
+
+  .hero { display: grid; gap: 20px; grid-template-columns: 1.05fr 1fr; align-items: stretch; }
+  .hero .kpis { margin: 14px 0 6px; }
+  .headline .cap { color: var(--muted); font-size: 12px; text-transform: uppercase; letter-spacing: .06em; }
+  .headline .big { font-size: 34px; font-weight: 680; letter-spacing: -.01em; line-height: 1.1;
+                   font-variant-numeric: tabular-nums; margin-top: 2px; }
+  .chartbox { display: flex; flex-direction: column; gap: 6px; min-width: 0; }
+  .chartbox .ctitle { color: var(--muted); font-size: 11px; text-transform: uppercase; letter-spacing: .06em; }
+  .hchart { justify-content: center; }
+
+  .kpis { display: grid; grid-template-columns: repeat(auto-fit, minmax(118px, 1fr)); gap: 10px; }
+  .kpi { background: rgba(255,255,255,.02); border: 1px solid var(--line);
+         border-radius: var(--radius-sm); padding: 10px 12px; }
+  .kpi .label { color: var(--muted); font-size: 11px; text-transform: uppercase; letter-spacing: .04em; }
+  .kpi .value { font-size: 19px; margin-top: 4px; font-variant-numeric: tabular-nums; }
+
+  .bar { height: 8px; border-radius: 6px; background: rgba(255,255,255,.06); overflow: hidden; margin-top: 8px; }
+  .bar > span { display: block; height: 100%; border-radius: 6px;
+                background: linear-gradient(90deg, var(--accent), var(--accent-2)); }
+  .barlabel { display: flex; justify-content: space-between; color: var(--muted); font-size: 11px; margin-top: 6px; }
+
+  .cards { display: grid; gap: 16px; grid-template-columns: repeat(auto-fill, minmax(300px, 1fr)); }
+  .pcard { position: relative; overflow: hidden; min-width: 0;
+           background: linear-gradient(180deg, var(--panel), var(--panel-2));
+           border: 1px solid var(--line); border-radius: var(--radius);
+           padding: 14px 15px; box-shadow: var(--shadow); }
+  .pcard::before { content: ""; position: absolute; inset: 0 0 auto 0; height: 3px; background: var(--accent); }
+  .pcard.up::before { background: var(--pos); }
+  .pcard.down::before { background: var(--neg); }
+  .pcard .phead { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+  .pcard .sym { font-size: 17px; font-weight: 660; }
+  .pcard .leg { color: var(--muted); font-size: 12px; margin: 6px 0 10px; font-variant-numeric: tabular-nums; }
+  .pcard .prow { display: grid; grid-template-columns: repeat(4, 1fr); gap: 8px; margin-bottom: 12px; }
+  .pcard .prow .k { font-size: 10px; color: var(--muted); text-transform: uppercase; letter-spacing: .03em; }
+  .pcard .prow .v { font-size: 14px; margin-top: 2px; font-variant-numeric: tabular-nums; }
+  .charts2 { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+  @media (max-width: 380px) { .charts2 { grid-template-columns: 1fr; } }
+
+  .spark { width: 100%; height: 68px; display: block; }
+  .hero .spark, .hchart .spark { height: 128px; }
+  .spark .area { fill: var(--c); fill-opacity: .13; stroke: none; }
+  .spark .line { fill: none; stroke: var(--c); stroke-width: 2; stroke-linejoin: round;
+                 stroke-linecap: round; vector-effect: non-scaling-stroke; }
+  .spark .dot { fill: var(--c); stroke: var(--bg); stroke-width: 1.5; }
+  .spark .zero { stroke: var(--line); stroke-width: 1; stroke-dasharray: 3 3; vector-effect: non-scaling-stroke; }
+  .nochart { color: var(--faint); font-size: 12px; text-align: center; padding: 26px 0; }
+
+  .table-wrap { overflow-x: auto; -webkit-overflow-scrolling: touch; }
+  table { width: 100%; border-collapse: collapse; font-variant-numeric: tabular-nums; }
+  th, td { text-align: left; padding: 7px 10px; border-bottom: 1px solid var(--line); white-space: nowrap; }
+  thead th { color: var(--muted); font-weight: 600; font-size: 11px; text-transform: uppercase; letter-spacing: .03em; }
+  tbody tr:hover { background: rgba(255,255,255,.02); }
+  td.num, th.num { text-align: right; }
+  .pos { color: var(--pos); } .neg { color: var(--neg); }
+  .empty { color: var(--faint); padding: 10px 0; }
+
+  .pill { display: inline-block; padding: 1px 9px; border-radius: 999px; font-size: 11px; border: 1px solid var(--line); }
+  .pill.strat { color: var(--muted); }
+  .pill.open { color: var(--pos); border-color: rgba(53,208,165,.4); background: rgba(53,208,165,.08); }
+  .pill.skip { color: var(--warn); border-color: rgba(255,180,84,.35); background: rgba(255,180,84,.07); }
+
+  footer { color: var(--faint); font-size: 11px; text-align: center; padding: 8px 20px 28px; }
+
+  @media (max-width: 720px) {
+    .hero { grid-template-columns: 1fr; }
+    .wrap { padding: 14px; gap: 14px; }
+    .headline .big { font-size: 28px; }
+  }
+</style>
+</head>
+<body>
+<header>
+  <div class="brand">
+    <span class="dot"></span>
+    <h1>Paper Harness</h1>
+    <span class="sub">public snapshot</span>
+  </div>
+  <span class="badge">paper</span>
+  <span class="meta" id="generated">loading&hellip;</span>
+  <span class="meta" id="updated"></span>
+</header>
+
+<div class="wrap">
+  <section class="full" id="hero-panel">
+    <h2>Portfolio</h2>
+    <div class="hero">
+      <div class="hpanel">
+        <div class="headline">
+          <div class="cap">Total P&amp;L</div>
+          <div class="big" id="hero-total">-</div>
+        </div>
+        <div class="kpis" id="hero-kpis"></div>
+        <div class="bar"><span id="budget-bar" style="width:0%"></span></div>
+        <div class="barlabel"><span id="budget-lo">-</span><span id="budget-hi">-</span></div>
+      </div>
+      <div class="chartbox hchart">
+        <span class="ctitle">Total P&amp;L over time</span>
+        <div id="pnl-chart"><div class="nochart">no data yet</div></div>
+      </div>
+    </div>
+  </section>
+
+  <section class="full" id="positions-panel">
+    <h2>Open Positions</h2>
+    <div class="cards" id="positions"></div>
+  </section>
+
+  <section class="full" id="closed-panel">
+    <h2>Closed Trades</h2>
+    <div class="table-wrap" id="closed"></div>
+  </section>
+
+  <div class="grid">
+    <section id="metrics-panel">
+      <h2>Performance Metrics</h2>
+      <div class="kpis" id="metrics-kpis"></div>
+      <div class="table-wrap" id="baselines"></div>
+    </section>
+    <section id="providers-panel">
+      <h2>Provider Bake-off</h2>
+      <div class="table-wrap" id="providers"></div>
+    </section>
+    <section id="decisions-panel">
+      <h2>Recent Decisions</h2>
+      <div class="table-wrap" id="decisions"></div>
+    </section>
+    <section id="rejections-panel">
+      <h2>Rejections</h2>
+      <div class="table-wrap" id="rejections"></div>
+    </section>
+  </div>
+</div>
+<footer>Static paper-trading snapshot &mdash; long options only, no live orders, no credentials.</footer>
+
+<script>
+const REFRESH_MS = 60000;
+
+function fmtMoney(v) {
+  if (v === null || v === undefined || !isFinite(v)) return "-";
+  return (v < 0 ? "-$" : "$") + Math.abs(v).toFixed(2);
+}
+function fmtNum(v) {
+  if (v === null || v === undefined || !isFinite(v)) return "-";
+  return Number(v).toFixed(2);
+}
+function fmtPct(v) {
+  if (v === null || v === undefined || !isFinite(v)) return "-";
+  return (v * 100).toFixed(2) + "%";
+}
+function sgn(v) { return v > 0 ? "pos" : (v < 0 ? "neg" : ""); }
+function esc(s) {
+  return String(s === null || s === undefined ? "" : s)
+    .replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
+}
+function empty(msg) { return '<div class="empty">' + esc(msg) + "</div>"; }
+function el(id) { return document.getElementById(id); }
+function pnlCell(v) {
+  if (v === null || v === undefined) return '<td class="num">-</td>';
+  return '<td class="num ' + sgn(v) + '">' + fmtMoney(v) + "</td>";
+}
+function legText(legs) {
+  return (legs || []).map(function (l) {
+    return esc(l.side + " " + l.qty + "x " + l.symbol);
+  }).join(" &middot; ");
+}
+
+// Inline SVG line/area chart -- no external dependency. kind: "price" | "pnl".
+function chartSvg(series, key, kind) {
+  const W = 340, H = 80, mL = 5, mR = 5, mT = 10, mB = 12;
+  const iw = W - mL - mR, ih = H - mT - mB;
+  const vals = [];
+  (series || []).forEach(function (d, i) {
+    const v = d[key];
+    if (v !== null && v !== undefined && isFinite(v)) vals.push({ i: i, v: +v });
+  });
+  if (!vals.length) return '<div class="nochart">no data yet</div>';
+  const n = (series || []).length;
+  const xs = function (i) { return n <= 1 ? iw / 2 : (i / (n - 1)) * iw; };
+  let lo = Math.min.apply(null, vals.map(function (p) { return p.v; }));
+  let hi = Math.max.apply(null, vals.map(function (p) { return p.v; }));
+  const zeroIn = kind === "pnl" && lo < 0 && hi > 0;
+  if (kind === "pnl") { lo = Math.min(lo, 0); hi = Math.max(hi, 0); }
+  if (lo === hi) { hi = lo + 1; lo = lo - 1; }
+  const pad = (hi - lo) * 0.14; lo -= pad; hi += pad;
+  const X = function (i) { return (mL + xs(i)).toFixed(1); };
+  const Y = function (v) { return (mT + (ih - ((v - lo) / (hi - lo)) * ih)).toFixed(1); };
+  const last = vals[vals.length - 1];
+  const color = kind === "pnl" ? (last.v < 0 ? "var(--neg)" : "var(--pos)") : "var(--accent)";
+  let s = '<svg class="spark" style="--c:' + color +
+    '" viewBox="0 0 ' + W + ' ' + H + '" preserveAspectRatio="none" aria-hidden="true">';
+  if (zeroIn) {
+    s += '<line class="zero" x1="' + mL + '" y1="' + Y(0) +
+      '" x2="' + (mL + iw) + '" y2="' + Y(0) + '"/>';
+  }
+  if (vals.length > 1) {
+    const baseV = kind === "pnl" ? 0 : lo;
+    const line = vals.map(function (p) { return X(p.i) + " " + Y(p.v); });
+    const area = "M " + line.join(" L ") + " L " + X(last.i) + " " + Y(baseV) +
+      " L " + X(vals[0].i) + " " + Y(baseV) + " Z";
+    s += '<path class="area" d="' + area + '"/>';
+    s += '<polyline class="line" points="' +
+      vals.map(function (p) { return X(p.i) + "," + Y(p.v); }).join(" ") + '"/>';
+  }
+  s += '<circle class="dot" cx="' + X(last.i) + '" cy="' + Y(last.v) + '" r="2.8"/>';
+  return s + "</svg>";
+}
+
+function renderHero(b, pnlSeries) {
+  b = b || {};
+  const t = el("hero-total");
+  t.textContent = fmtMoney(b.total_pnl);
+  t.className = "big " + sgn(b.total_pnl);
+  const kpis = [
+    ["Realized", fmtMoney(b.realized_pnl), sgn(b.realized_pnl)],
+    ["Unrealized", fmtMoney(b.unrealized_pnl), sgn(b.unrealized_pnl)],
+    ["Open premium", fmtMoney(b.open_premium) + " / " + fmtMoney(b.total_open_cap), ""],
+    ["Open / max", (b.open_count || 0) + " / " + (b.max_concurrent || 0), ""],
+  ];
+  el("hero-kpis").innerHTML = kpis.map(function (k) {
+    return '<div class="kpi"><div class="label">' + esc(k[0]) +
+      '</div><div class="value ' + k[2] + '">' + esc(k[1]) + "</div></div>";
+  }).join("");
+  const pct = Math.max(0, Math.min(100, b.budget_used_pct || 0));
+  el("budget-bar").style.width = pct + "%";
+  el("budget-lo").textContent = "Week spent " + fmtMoney(b.week_spent) +
+    " of " + fmtMoney(b.budget_weekly);
+  el("budget-hi").textContent = pct.toFixed(0) + "% used";
+  el("pnl-chart").innerHTML = chartSvg(pnlSeries, "total_pnl", "pnl");
+}
+
+function renderPositions(rows) {
+  rows = rows || [];
+  const box = el("positions");
+  if (!rows.length) { box.innerHTML = empty("No open positions yet."); return; }
+  box.innerHTML = rows.map(function (p) {
+    const u = p.unrealized_pnl;
+    const state = u > 0 ? "up" : (u < 0 ? "down" : "");
+    const ret = (p.entry_cost && u !== null && u !== undefined) ? u / p.entry_cost : null;
+    const kpi = [
+      ["Entry", fmtMoney(p.entry_cost), ""],
+      ["Mark", fmtNum(p.last_mark), ""],
+      ["Unreal.", fmtMoney(u), sgn(u)],
+      ["Return", fmtPct(ret), sgn(ret)],
+    ];
+    return '<div class="pcard ' + state + '">' +
+      '<div class="phead"><span class="sym">' + esc(p.underlying) +
+      '</span><span class="pill strat">' + esc(p.strategy) + "</span></div>" +
+      '<div class="leg">' + legText(p.legs) + "</div>" +
+      '<div class="prow">' + kpi.map(function (k) {
+        return '<div><div class="k">' + esc(k[0]) + '</div><div class="v ' + k[2] +
+          '">' + esc(k[1]) + "</div></div>";
+      }).join("") + "</div>" +
+      '<div class="charts2">' +
+      '<div class="chartbox"><span class="ctitle">Price</span>' +
+      chartSvg(p.history, "price", "price") + "</div>" +
+      '<div class="chartbox"><span class="ctitle">P&amp;L</span>' +
+      chartSvg(p.history, "pnl", "pnl") + "</div></div></div>";
+  }).join("");
+}
+
+function renderClosed(rows) {
+  rows = rows || [];
+  const box = el("closed");
+  if (!rows.length) { box.innerHTML = empty("No closed trades yet."); return; }
+  let html = "<table><thead><tr><th>Underlying</th><th>Strategy</th>" +
+    "<th class='num'>Entry</th><th class='num'>Exit value</th>" +
+    "<th class='num'>Realized</th><th>Exited</th></tr></thead><tbody>";
+  for (const p of rows) {
+    html += "<tr><td>" + esc(p.underlying) + "</td><td>" + esc(p.strategy) +
+      "</td><td class='num'>" + fmtMoney(p.entry_cost) + "</td><td class='num'>" +
+      (p.exit_value === null || p.exit_value === undefined ? "-" : fmtMoney(p.exit_value)) +
+      "</td>" + pnlCell(p.realized_pnl) + "<td>" + esc(p.exit_ts) + "</td></tr>";
+  }
+  box.innerHTML = html + "</tbody></table>";
+}
+
+function renderMetrics(data) {
+  data = data || {};
+  const m = data.metrics || {};
+  const kpis = [
+    ["Closed trades", String(data.n_closed || 0)],
+    ["Win rate", fmtPct(m.win_rate)],
+    ["Expectancy", fmtMoney(m.expectancy)],
+    ["Total P&L", fmtMoney(m.total_pnl)],
+    ["Return", fmtPct(m.return_pct)],
+    ["Profit factor", (m.profit_factor === null || m.profit_factor === undefined)
+      ? "∞" : Number(m.profit_factor).toFixed(2)],
+    ["Max drawdown", fmtMoney(m.max_drawdown)],
+  ];
+  el("metrics-kpis").innerHTML = kpis.map(function (k) {
+    return '<div class="kpi"><div class="label">' + esc(k[0]) +
+      '</div><div class="value">' + esc(k[1]) + "</div></div>";
+  }).join("");
+
+  const bs = data.baselines || [];
+  const excess = data.excess_pnl || {};
+  const box = el("baselines");
+  if (!bs.length) { box.innerHTML = empty("No baselines."); return; }
+  let html = "<table><thead><tr><th>Baseline</th>" +
+    "<th class='num'>Total P&L</th><th class='num'>Return</th>" +
+    "<th class='num'>Strategy excess</th></tr></thead><tbody>";
+  for (const b of bs) {
+    html += "<tr><td>" + esc(b.name) + "</td>" + pnlCell(b.total_pnl) +
+      "<td class='num'>" + fmtPct(b.return_pct) + "</td>" +
+      pnlCell(excess[b.name]) + "</tr>";
+  }
+  box.innerHTML = html + "</tbody></table>";
+}
+
+function renderDecisions(rows) {
+  rows = (rows || []).slice().reverse();
+  const box = el("decisions");
+  if (!rows.length) { box.innerHTML = empty("No decisions logged."); return; }
+  let html = "<table><thead><tr><th>Time</th><th>Underlying</th>" +
+    "<th>Action</th><th>Reason</th></tr></thead><tbody>";
+  for (const d of rows) {
+    const p = d.action === "OPEN" ? "open" : "skip";
+    html += "<tr><td>" + esc(d.ts) + "</td><td>" + esc(d.underlying) +
+      "</td><td><span class='pill " + p + "'>" + esc(d.action) +
+      "</span></td><td>" + esc(d.reason) + "</td></tr>";
+  }
+  box.innerHTML = html + "</tbody></table>";
+}
+
+function renderRejections(rows) {
+  rows = (rows || []).slice().reverse();
+  const box = el("rejections");
+  if (!rows.length) { box.innerHTML = empty("No rejections."); return; }
+  let html = "<table><thead><tr><th>Time</th><th>Underlying</th>" +
+    "<th>Reason</th></tr></thead><tbody>";
+  for (const d of rows) {
+    html += "<tr><td>" + esc(d.ts) + "</td><td>" + esc(d.underlying) +
+      "</td><td>" + esc(d.reason) + "</td></tr>";
+  }
+  box.innerHTML = html + "</tbody></table>";
+}
+
+function renderProviders(data) {
+  data = data || {};
+  const rows = data.providers || [];
+  const box = el("providers");
+  if (!rows.length) { box.innerHTML = empty("No provider samples."); return; }
+  let html = "<table><thead><tr><th>Provider</th><th>Latency</th>" +
+    "<th class='num'>Samples</th><th class='num'>Avg coverage</th>" +
+    "<th class='num'>Avg mid</th></tr></thead><tbody>";
+  for (const p of rows) {
+    const cov = (p.avg_coverage === null || p.avg_coverage === undefined)
+      ? "-" : (p.avg_coverage * 100).toFixed(1) + "%";
+    const mid = (p.avg_mid === null || p.avg_mid === undefined) ? "-" : fmtMoney(p.avg_mid);
+    html += "<tr><td>" + esc(p.provider) + "</td><td>" + esc(p.latency || "-") +
+      "</td><td class='num'>" + (p.samples || 0) + "</td><td class='num'>" + cov +
+      "</td><td class='num'>" + mid + "</td></tr>";
+  }
+  box.innerHTML = html + "</tbody></table>";
+}
+
+async function refresh() {
+  try {
+    const r = await fetch("data.json", { cache: "no-store" });
+    if (!r.ok) throw new Error("data.json -> " + r.status);
+    const snap = await r.json();
+    renderHero(snap.budget, snap.pnl_series);
+    renderPositions(snap.open_positions);
+    renderClosed(snap.closed_trades);
+    renderMetrics(snap.metrics);
+    renderDecisions(snap.decisions);
+    renderRejections(snap.rejections);
+    renderProviders(snap.providers);
+    el("generated").textContent = "snapshot " + (snap.generated_at || "?");
+    el("updated").textContent = "refreshed " + new Date().toLocaleTimeString();
+  } catch (e) {
+    el("updated").textContent = "error: " + e.message;
+  }
+}
+
+refresh();
+setInterval(refresh, REFRESH_MS);
+</script>
+</body>
+</html>
